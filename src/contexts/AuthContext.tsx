@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-export type UserRole = 'superadmin' | 'admin' | 'supervisor' | 'finance';
+export type UserRole = 'client_admin' | 'client_viewer';
 
 export interface User {
   name: string;
   email: string;
   role: UserRole;
+  company: string;
   avatar: string;
 }
 
@@ -23,49 +24,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check local storage for active session
-    const storedUser = localStorage.getItem('internal_backoffice_user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        console.error('Failed to parse stored user', e);
-      }
+    const stored = localStorage.getItem('client_portal_user');
+    if (stored) {
+      try { setUser(JSON.parse(stored)); } catch {}
     }
     setIsLoading(false);
   }, []);
 
   const login = (email: string, role: UserRole) => {
-    let name = '';
-    switch (role) {
-      case 'superadmin':
-        name = 'Super Admin';
-        break;
-      case 'admin':
-        name = 'Admin Operasional';
-        break;
-      case 'supervisor':
-        name = 'Supervisor Reviewer';
-        break;
-      case 'finance':
-        name = 'Finance Manager';
-        break;
-    }
-
     const newUser: User = {
-      name,
+      name: role === 'client_admin' ? 'Admin Client' : 'Viewer Client',
       email,
       role,
-      avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${name}`,
+      company: 'PT Maju Bersama',
+      avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${email}`,
     };
-
     setUser(newUser);
-    localStorage.setItem('internal_backoffice_user', JSON.stringify(newUser));
+    localStorage.setItem('client_portal_user', JSON.stringify(newUser));
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('internal_backoffice_user');
+    localStorage.removeItem('client_portal_user');
   };
 
   return (
@@ -77,8 +57,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 };
