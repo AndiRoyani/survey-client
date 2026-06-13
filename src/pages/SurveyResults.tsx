@@ -1,6 +1,6 @@
 // src/pages/SurveyResults.tsx
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -9,6 +9,7 @@ import {
   ImageIcon, DownloadIcon, StoreIcon, PackageIcon,
   ChevronDownIcon, ChevronRightIcon,
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 type ViewMode = 'store' | 'product';
 
@@ -17,11 +18,10 @@ export const SurveyResults: React.FC = () => {
   const [viewMode, setViewMode]                   = useState<ViewMode>('store');
   const [expandedKeys, setExpandedKeys]           = useState<Set<string>>(new Set());
 
-  const project      = mockProjects.find(p => p.id === selectedProjectId)!;
+  const project       = mockProjects.find(p => p.id === selectedProjectId)!;
   const approvedTasks = project.tasks.filter(t => t.status === 'approved');
-
-  const storeNames   = [...new Set(approvedTasks.map(t => t.storeName))];
-  const productNames = [...new Set(approvedTasks.map(t => t.productName))];
+  const storeNames    = [...new Set(approvedTasks.map(t => t.storeName))];
+  const productNames  = [...new Set(approvedTasks.map(t => t.productName))];
 
   const toggle = (key: string) =>
     setExpandedKeys(prev => {
@@ -30,8 +30,44 @@ export const SurveyResults: React.FC = () => {
       return next;
     });
 
+  // ---- Export Excel ----
+  const handleExport = () => {
+    if (approvedTasks.length === 0) return;
+
+    const allStores   = [...new Set(approvedTasks.map(t => t.storeName))];
+    const allProducts = [...new Set(approvedTasks.map(t => t.productName))];
+
+    // Sheet 1: Ringkasan — baris = toko, kolom = produk, isi = harga
+    const summaryData = allStores.map(store => {
+      const row: Record<string, string | number> = { Toko: store };
+      allProducts.forEach(prod => {
+        const task = approvedTasks.find(t => t.storeName === store && t.productName === prod);
+        row[prod] = task?.price ?? '-';
+      });
+      return row;
+    });
+
+    // Sheet 2: Detail lengkap
+    const detailData = approvedTasks.map(t => ({
+      'Task ID':   t.id,
+      'Toko':      t.storeName,
+      'Produk':    t.productName,
+      'Kategori':  t.category,
+      'Harga':     t.price ?? '-',
+      'Status':    t.status,
+      'Selesai':   t.completedAt ?? '-',
+      'Link Foto': t.photo ?? '-',
+    }));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryData), 'Ringkasan');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detailData),  'Detail');
+    XLSX.writeFile(wb, `hasil-survey-${project.id}.xlsx`);
+  };
+
+  // ---- Task Card ----
   const TaskCard: React.FC<{ task: Task }> = ({ task }) => (
-    <div className="border border-border rounded-xl overflow-hidden flex flex-col sm:flex-row gap-0">
+    <div className="border border-border rounded-xl overflow-hidden flex flex-col sm:flex-row">
       {task.photo ? (
         <div className="h-40 sm:h-auto sm:w-40 shrink-0 overflow-hidden bg-muted">
           <img src={task.photo} alt={task.productName}
@@ -76,14 +112,17 @@ export const SurveyResults: React.FC = () => {
             Data task yang sudah diapprove oleh admin.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => alert('Export Excel — coming soon di Tahap 8!')}>
+        <Button variant="outline" size="sm" onClick={handleExport} disabled={approvedTasks.length === 0}>
           <DownloadIcon className="w-4 h-4 mr-1.5" /> Export Excel
         </Button>
       </div>
 
       {/* Controls */}
       <div className="flex flex-wrap gap-3 items-center">
-        <Select value={selectedProjectId} onValueChange={v => { setSelectedProjectId(v); setExpandedKeys(new Set()); }}>
+        <Select
+          value={selectedProjectId}
+          onValueChange={v => { setSelectedProjectId(v); setExpandedKeys(new Set()); }}
+        >
           <SelectTrigger className="w-72">
             <SelectValue placeholder="Pilih project" />
           </SelectTrigger>
@@ -101,22 +140,24 @@ export const SurveyResults: React.FC = () => {
           <button
             onClick={() => setViewMode('store')}
             className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors
-              ${viewMode === 'store' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+              ${viewMode === 'store'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-background text-muted-foreground hover:bg-muted'}`}
           >
             <StoreIcon className="w-3.5 h-3.5" /> Per Toko
           </button>
           <button
             onClick={() => setViewMode('product')}
             className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold transition-colors
-              ${viewMode === 'product' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
+              ${viewMode === 'product'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-background text-muted-foreground hover:bg-muted'}`}
           >
             <PackageIcon className="w-3.5 h-3.5" /> Per Produk
           </button>
         </div>
 
-        <span className="text-xs text-muted-foreground">
-          {approvedTasks.length} task approved
-        </span>
+        <span className="text-xs text-muted-foreground">{approvedTasks.length} task approved</span>
       </div>
 
       {/* Empty state */}
@@ -124,7 +165,9 @@ export const SurveyResults: React.FC = () => {
         <div className="text-center py-20 bg-muted/25 border border-dashed border-border rounded-2xl">
           <ImageIcon className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm font-semibold text-muted-foreground">Belum ada hasil survey</p>
-          <p className="text-xs text-muted-foreground mt-1">Hasil muncul setelah task diapprove oleh admin.</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Hasil muncul setelah task diapprove oleh admin.
+          </p>
         </div>
       )}
 
@@ -152,7 +195,6 @@ export const SurveyResults: React.FC = () => {
                     Klik untuk {expanded ? 'tutup' : 'lihat hasil'}
                   </span>
                 </button>
-
                 {expanded && (
                   <div className="border-t border-border p-4">
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -194,7 +236,6 @@ export const SurveyResults: React.FC = () => {
                     <p className="text-sm font-bold text-primary">Rp{avgPrice.toLocaleString('id-ID')}</p>
                   </div>
                 </button>
-
                 {expanded && (
                   <div className="border-t border-border p-4">
                     <div className="grid gap-3 sm:grid-cols-2">

@@ -21,8 +21,9 @@ import { ProjectDetail } from './ProjectDetail';
 import { CreateProject } from './CreateProject';
 import { MonitorProgress } from './MonitorProgress';
 import { SurveyResults } from './SurveyResults';
+import { Settings } from './Settings';
 
-type Page = 'dashboard' | 'projects' | 'project-detail' | 'create-project' | 'progress' | 'results';
+type Page = 'dashboard' | 'projects' | 'project-detail' | 'create-project' | 'progress' | 'results' | 'settings';
 
 const trendData = [
   { day: 'Senin', count: 28 },
@@ -305,6 +306,7 @@ export const Dashboard: React.FC = () => {
               )}
             {page === 'progress' && <MonitorProgress />}
             {page === 'results'  && <SurveyResults />}
+            {page === 'settings' && <Settings />}
 
           </main>
         </SidebarInset>
