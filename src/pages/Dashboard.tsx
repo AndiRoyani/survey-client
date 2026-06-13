@@ -58,9 +58,13 @@ export const Dashboard: React.FC = () => {
 
   // Breadcrumb label
   const breadcrumbs: Record<Page, string> = {
-    dashboard:      'Dashboard',
-    projects:       'Project Saya',
+    dashboard:       'Dashboard',
+    projects:        'Project Saya',
     'project-detail': 'Detail Project',
+    'create-project': 'Buat Project',
+    progress:        'Progress',
+    results:         'Hasil Survey',
+    settings:        'Pengaturan',
   };
 
   return (
